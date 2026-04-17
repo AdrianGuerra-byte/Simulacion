@@ -55,48 +55,43 @@ export default function App() {
     dnt: "...",
     cookies: "...",
     pdf: "...",
-    languages: [],
-    hardwareConcurrency: 0,
+    languages: [] as string[],
+    hardwareConcurrency: 0 as number | string,
     mediaDevices: { cameras: 0, mics: 0, speakers: 0, permission: "..." },
   });
 
   const [geolocation, setGeolocation] = useState({
     status: "EN ESPERA",
-    lat: null,
-    lon: null,
-    accuracy: null,
-    link: null,
+    lat: null as string | null,
+    lon: null as string | null,
+    accuracy: null as string | null,
+    link: null as string | null,
   });
 
-  // --- RECOLECCION DE DATOS CON BYPASS ABSOLUTO DE TYPESCRIPT ---
+  // --- RECOLECCION DE DATOS (CON TYPESCRIPT) ---
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const nav = navigator;
+    // TypeScript exige que sepamos qué propiedades tiene navigator. Usamos any para evadir las que no son estándar.
+    const nav: any = navigator;
     if (nav.hardwareConcurrency) setCores(nav.hardwareConcurrency);
 
     let gpuModel = "NO DETECTADO";
     try {
       const canvas = document.createElement("canvas");
-      const glContext =
+      // Forzamos el tipo a any para que TS nos deje llamar a métodos no estándar
+      const gl: any =
         canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
 
-      // SOLUCIÓN DEFINITIVA PARA VERCEL/TYPESCRIPT:
-      // Ocultamos las funciones de WebGL dentro de un constructor de cadena dinámica.
-      // TypeScript no puede analizar código dentro de un 'new Function()', evadiendo el error.
-      const getGPU = new Function(
-        "gl",
-        `
-        if (!gl || typeof gl.getExtension !== 'function') return "NO DISPONIBLE";
-        var debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-        if (debugInfo && typeof gl.getParameter === 'function') {
-          return gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || "NO DISPONIBLE";
+      if (gl) {
+        // Le decimos a TS que confíe en nosotros y que este objeto tiene la forma correcta
+        const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
+        if (debugInfo) {
+          gpuModel =
+            gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ||
+            "NO DISPONIBLE";
         }
-        return "NO DISPONIBLE";
-      `,
-      );
-
-      gpuModel = getGPU(glContext);
+      }
     } catch (e) {
       gpuModel = "ERROR_ACCESO";
     }
@@ -127,17 +122,17 @@ export default function App() {
         ? "ARM"
         : "DESCONOCIDA";
 
-    // Acceso seguro a propiedades de red para evadir comprobaciones de Vercel
+    // Acceso seguro a propiedades de red para evadir comprobaciones
     const connection =
-      nav["connection"] || nav["mozConnection"] || nav["webkitConnection"];
+      nav.connection || nav.mozConnection || nav.webkitConnection;
     let connectionType = "DESCONOCIDA",
       networkSpeed = "DESCONOCIDA";
     if (connection) {
-      connectionType = connection["effectiveType"]
-        ? String(connection["effectiveType"]).toUpperCase()
+      connectionType = connection.effectiveType
+        ? String(connection.effectiveType).toUpperCase()
         : "DESCONOCIDA";
-      networkSpeed = connection["downlink"]
-        ? `${connection["downlink"]} Mbps [${connection["rtt"]}ms]`
+      networkSpeed = connection.downlink
+        ? `${connection.downlink} Mbps [${connection.rtt}ms]`
         : "DESCONOCIDA";
     }
 
@@ -147,7 +142,7 @@ export default function App() {
       browser,
       deviceModel: deviceType,
       cpuArch,
-      memory: nav["deviceMemory"] ? `${nav["deviceMemory"]}GB` : "RESTRINGIDO",
+      memory: nav.deviceMemory ? `${nav.deviceMemory}GB` : "RESTRINGIDO",
       screen: `${window.screen.width}x${window.screen.height}`,
       connection: connectionType,
       networkSpeed,
@@ -161,7 +156,7 @@ export default function App() {
     if (nav.getBattery) {
       nav
         .getBattery()
-        .then((battery) => {
+        .then((battery: any) => {
           const updateBattery = () => {
             setDeviceInfo((prev) => ({
               ...prev,
@@ -202,7 +197,9 @@ export default function App() {
               ? "OSCURO"
               : "CLARO",
             cookies: nav.cookieEnabled ? "HABILITADAS" : "BLOQUEADAS",
-            languages: nav.languages.map((l) => l.toUpperCase()),
+            languages: (nav.languages || []).map((l: string) =>
+              l.toUpperCase(),
+            ),
             hardwareConcurrency: nav.hardwareConcurrency || "N/D",
           }));
         } catch (e) {}
@@ -270,7 +267,7 @@ export default function App() {
     );
   };
 
-  const formatTime = (seconds) => {
+  const formatTime = (seconds: number) => {
     if (!seconds || !password) return "0 SEGUNDOS";
     if (seconds < 1) return "INSTANTÁNEO";
     const minutes = seconds / 60;
@@ -286,7 +283,7 @@ export default function App() {
     return `${years.toExponential(2)} AÑOS`;
   };
 
-  const formatNumber = (num) =>
+  const formatNumber = (num: number) =>
     num > 1e21
       ? num.toExponential(2)
       : new Intl.NumberFormat("es-MX").format(Math.floor(num));
