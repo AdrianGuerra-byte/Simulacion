@@ -79,20 +79,17 @@ export default function App() {
     let gpuModel = "NO DETECTADO";
     try {
       const canvas = document.createElement("canvas");
+      // Forzamos el tipo a 'any' internamente para evitar el error de compilación de Vercel/TypeScript
       const gl =
         canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
 
-      // SOLUCIÓN DEFINITIVA PARA EL ERROR DE VERCEL (TYPESCRIPT):
-      // Usamos acceso por corchetes ['prop'] para evitar que el compilador bloquee el acceso
-      if (gl) {
-        const getExt = gl["getExtension"]?.bind(gl);
-        if (getExt) {
-          const debugInfo = getExt("WEBGL_debug_renderer_info");
-          if (debugInfo) {
-            gpuModel =
-              gl["getParameter"](debugInfo.UNMASKED_RENDERER_WEBGL) ||
-              "NO DISPONIBLE";
-          }
+      if (gl && "getExtension" in gl) {
+        const webgl = gl;
+        const debugInfo = webgl.getExtension("WEBGL_debug_renderer_info");
+        if (debugInfo) {
+          gpuModel =
+            webgl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ||
+            "NO DISPONIBLE";
         }
       }
     } catch (e) {
@@ -125,7 +122,7 @@ export default function App() {
         ? "ARM"
         : "DESCONOCIDA";
 
-    // Acceso seguro a la conexión (evita errores de TS)
+    // Acceso seguro a la conexión
     const conn =
       nav["connection"] || nav["mozConnection"] || nav["webkitConnection"];
     let connectionType = "DESCONOCIDA",
