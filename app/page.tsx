@@ -68,27 +68,30 @@ export default function App() {
     link: null as string | null,
   });
 
-  // --- RECOLECCION DE DATOS (CON TYPESCRIPT) ---
+  // --- RECOLECCION DE DATOS TIPADA ESTRICTAMENTE PARA TYPESCRIPT ---
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // TypeScript exige que sepamos qué propiedades tiene navigator. Usamos any para evadir las que no son estándar.
-    const nav: any = navigator;
+    // Casteamos navigator a 'any' para evitar que TS bloquee propiedades experimentales
+    const nav = navigator as any;
     if (nav.hardwareConcurrency) setCores(nav.hardwareConcurrency);
 
     let gpuModel = "NO DETECTADO";
     try {
       const canvas = document.createElement("canvas");
-      // Forzamos el tipo a any para que TS nos deje llamar a métodos no estándar
-      const gl: any =
-        canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+
+      // SOLUCIÓN FINAL: Casteamos explícitamente al tipo WebGLRenderingContext.
+      // Así TypeScript sabe al 100% que getExtension y getParameter existen.
+      const gl = (canvas.getContext("webgl") ||
+        canvas.getContext(
+          "experimental-webgl",
+        )) as WebGLRenderingContext | null;
 
       if (gl) {
-        // Le decimos a TS que confíe en nosotros y que este objeto tiene la forma correcta
-        const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
+        const debugInfo = gl.getExtension("WEBGL_debug_renderer_info") as any;
         if (debugInfo) {
           gpuModel =
-            gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ||
+            (gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) as string) ||
             "NO DISPONIBLE";
         }
       }
@@ -122,7 +125,6 @@ export default function App() {
         ? "ARM"
         : "DESCONOCIDA";
 
-    // Acceso seguro a propiedades de red para evadir comprobaciones
     const connection =
       nav.connection || nav.mozConnection || nav.webkitConnection;
     let connectionType = "DESCONOCIDA",
@@ -147,8 +149,10 @@ export default function App() {
       connection: connectionType,
       networkSpeed,
       gpu: gpuModel,
-      language: nav.language.toUpperCase(),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone.toUpperCase(),
+      language: nav.language?.toUpperCase() || "DESCONOCIDO",
+      timezone:
+        Intl.DateTimeFormat().resolvedOptions().timeZone?.toUpperCase() ||
+        "DESCONOCIDA",
       touch: nav.maxTouchPoints > 0 ? `SI [${nav.maxTouchPoints} PTS]` : "NO",
       userAgent: ua,
     }));
