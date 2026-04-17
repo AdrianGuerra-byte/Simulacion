@@ -75,14 +75,23 @@ export default function App() {
     let gpuModel = "NO DETECTADO";
     try {
       const canvas = document.createElement("canvas");
+      // Obtenemos el contexto
       const gl =
         canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-      if (gl) {
+
+      // CORRECCIÓN PARA VERCEL/TYPESCRIPT:
+      // Verificamos explícitamente si 'gl' tiene la función 'getExtension' antes de usarla
+      if (gl && typeof gl.getExtension === "function") {
         const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
-        if (debugInfo)
-          gpuModel = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+        if (debugInfo) {
+          gpuModel =
+            gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ||
+            "NO DISPONIBLE";
+        }
       }
-    } catch (e) {}
+    } catch (e) {
+      gpuModel = "ERROR DE ACCESO";
+    }
 
     const ua = navigator.userAgent;
     let os = "DESCONOCIDO";
@@ -200,7 +209,8 @@ export default function App() {
       while (performance.now() - start < 200) {
         operations += (Math.random() * 1000) ^ 2;
       }
-      const baseOpsPerSec = (operations / (performance.now() - start)) * 1000;
+      const diff = performance.now() - start;
+      const baseOpsPerSec = (operations / (diff > 0 ? diff : 1)) * 1000;
       setHashesPerSecond(Math.floor(baseOpsPerSec * 25000 * cores));
       setIsBenchmarking(false);
     }, 50);
@@ -244,7 +254,7 @@ export default function App() {
           accuracy: `±${Math.round(pos.coords.accuracy)}m`,
           link: `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`,
         }),
-      (err) => setGeolocation((prev) => ({ ...prev, status: "ERROR_ACCESO" })),
+      () => setGeolocation((prev) => ({ ...prev, status: "ERROR_ACCESO" })),
       { enableHighAccuracy: true },
     );
   };
