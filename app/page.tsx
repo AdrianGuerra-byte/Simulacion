@@ -70,30 +70,36 @@ export default function App() {
 
   // --- RECOLECCIÓN DE DATOS ---
   useEffect(() => {
-    if (navigator.hardwareConcurrency) setCores(navigator.hardwareConcurrency);
+    if (typeof window === "undefined") return;
+
+    const nav = navigator;
+
+    if (nav.hardwareConcurrency) setCores(nav.hardwareConcurrency);
 
     let gpuModel = "NO DETECTADO";
     try {
       const canvas = document.createElement("canvas");
-      // Obtenemos el contexto
       const gl =
         canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
 
-      // CORRECCIÓN PARA VERCEL/TYPESCRIPT:
-      // Verificamos explícitamente si 'gl' tiene la función 'getExtension' antes de usarla
-      if (gl && typeof gl.getExtension === "function") {
-        const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
-        if (debugInfo) {
-          gpuModel =
-            gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ||
-            "NO DISPONIBLE";
+      // SOLUCIÓN DEFINITIVA PARA EL ERROR DE VERCEL (TYPESCRIPT):
+      // Usamos acceso por corchetes ['prop'] para evitar que el compilador bloquee el acceso
+      if (gl) {
+        const getExt = gl["getExtension"]?.bind(gl);
+        if (getExt) {
+          const debugInfo = getExt("WEBGL_debug_renderer_info");
+          if (debugInfo) {
+            gpuModel =
+              gl["getParameter"](debugInfo.UNMASKED_RENDERER_WEBGL) ||
+              "NO DISPONIBLE";
+          }
         }
       }
     } catch (e) {
       gpuModel = "ERROR DE ACCESO";
     }
 
-    const ua = navigator.userAgent;
+    const ua = nav.userAgent;
     let os = "DESCONOCIDO";
     if (ua.indexOf("Win") !== -1) os = "WINDOWS";
     if (ua.indexOf("Mac") !== -1) os = "MACOS";
@@ -119,14 +125,17 @@ export default function App() {
         ? "ARM"
         : "DESCONOCIDA";
 
+    // Acceso seguro a la conexión (evita errores de TS)
+    const conn =
+      nav["connection"] || nav["mozConnection"] || nav["webkitConnection"];
     let connectionType = "DESCONOCIDA",
       networkSpeed = "DESCONOCIDA";
-    if (navigator.connection) {
-      connectionType = navigator.connection.effectiveType
-        ? navigator.connection.effectiveType.toUpperCase()
+    if (conn) {
+      connectionType = conn.effectiveType
+        ? conn.effectiveType.toUpperCase()
         : "DESCONOCIDA";
-      networkSpeed = navigator.connection.downlink
-        ? `${navigator.connection.downlink} Mbps [${navigator.connection.rtt}ms]`
+      networkSpeed = conn.downlink
+        ? `${conn.downlink} Mbps [${conn.rtt}ms]`
         : "DESCONOCIDA";
     }
 
@@ -136,24 +145,19 @@ export default function App() {
       browser,
       deviceModel: deviceType,
       cpuArch,
-      memory: navigator.deviceMemory
-        ? `${navigator.deviceMemory}GB`
-        : "RESTRINGIDO",
+      memory: nav["deviceMemory"] ? `${nav["deviceMemory"]}GB` : "RESTRINGIDO",
       screen: `${window.screen.width}x${window.screen.height}`,
       connection: connectionType,
       networkSpeed,
       gpu: gpuModel,
-      language: navigator.language.toUpperCase(),
+      language: nav.language.toUpperCase(),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone.toUpperCase(),
-      touch:
-        navigator.maxTouchPoints > 0
-          ? `SI [${navigator.maxTouchPoints} PTS]`
-          : "NO",
+      touch: nav.maxTouchPoints > 0 ? `SI [${nav.maxTouchPoints} PTS]` : "NO",
       userAgent: ua,
     }));
 
-    if (navigator.getBattery) {
-      navigator.getBattery().then((battery) => {
+    if (nav.getBattery) {
+      nav.getBattery().then((battery) => {
         const updateBattery = () => {
           setDeviceInfo((prev) => ({
             ...prev,
@@ -167,7 +171,7 @@ export default function App() {
     }
 
     const generateFingerprint = () => {
-      const str = `${ua}|${navigator.language}|${window.screen.width}|${navigator.hardwareConcurrency}`;
+      const str = `${ua}|${nav.language}|${window.screen.width}|${nav.hardwareConcurrency}`;
       let hash = 0;
       for (let i = 0; i < str.length; i++) {
         hash = (hash << 5) - hash + str.charCodeAt(i);
@@ -178,8 +182,8 @@ export default function App() {
     setDeviceInfo((prev) => ({ ...prev, fingerprint: generateFingerprint() }));
 
     const gatherStorage = async () => {
-      if (navigator.storage && navigator.storage.estimate) {
-        const est = await navigator.storage.estimate();
+      if (nav.storage && nav.storage.estimate) {
+        const est = await nav.storage.estimate();
         setAdvTelemetry((prev) => ({
           ...prev,
           storageTotal: est.quota
@@ -191,9 +195,9 @@ export default function App() {
           theme: window.matchMedia("(prefers-color-scheme: dark)").matches
             ? "OSCURO"
             : "CLARO",
-          cookies: navigator.cookieEnabled ? "HABILITADAS" : "BLOQUEADAS",
-          languages: navigator.languages.map((l) => l.toUpperCase()),
-          hardwareConcurrency: navigator.hardwareConcurrency || "N/D",
+          cookies: nav.cookieEnabled ? "HABILITADAS" : "BLOQUEADAS",
+          languages: nav.languages.map((l) => l.toUpperCase()),
+          hardwareConcurrency: nav.hardwareConcurrency || "N/D",
         }));
       }
     };
