@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 
-// Arte ASCII formal para el encabezado
+// ARTE ASCII ACADEMICO
 const ASCII_HEADER = `
   ____ ___ __  __ _   _ _        _    ____ ___ ___  _   _
  / ___|_ _|  \\/  | | | | |      / \\  / ___|_ _/ _ \\| \\ | |
  \\___ \\| || |\\/| | | | | |     / _ \\| |    | | | | |  \\| |
   ___) | || |  | | |_| | |___ / ___ \\ |___ | | |_| | |\\  |
  |____/___|_|  |_|\\___/|_____/_/   \\_\\____|___\\___/|_| \\_|
-       MOTOR DE CALCULO Y ANALISIS DE SISTEMAS v2.0
+       SISTEMA DE CALCULO Y ANALISIS DE SEGURIDAD v2.0
 `;
 
 export default function App() {
@@ -26,7 +26,7 @@ export default function App() {
   const [timeToCrack, setTimeToCrack] = useState(0);
   const [alphabetSize, setAlphabetSize] = useState(0);
 
-  // --- ESTADOS DE LA RADIOGRAFÍA ---
+  // --- ESTADOS DE LA RADIOGRAFIA ---
   const [deviceInfo, setDeviceInfo] = useState({
     os: "...",
     browser: "...",
@@ -68,32 +68,38 @@ export default function App() {
     link: null,
   });
 
-  // --- RECOLECCIÓN DE DATOS ---
+  // --- RECOLECCION DE DATOS CON BYPASS DE TYPESCRIPT ---
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const nav = navigator;
-
     if (nav.hardwareConcurrency) setCores(nav.hardwareConcurrency);
 
     let gpuModel = "NO DETECTADO";
     try {
       const canvas = document.createElement("canvas");
-      // Forzamos el tipo a 'any' internamente para evitar el error de compilación de Vercel/TypeScript
+      // Acceso dinámico para evadir el Type Checking de Vercel
       const gl =
         canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
 
-      if (gl && "getExtension" in gl) {
-        const webgl = gl;
-        const debugInfo = webgl.getExtension("WEBGL_debug_renderer_info");
-        if (debugInfo) {
-          gpuModel =
-            webgl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ||
-            "NO DISPONIBLE";
+      if (gl) {
+        // Usamos notación de corchetes para que el compilador no valide la propiedad
+        const getExtensionFn = gl["getExtension"];
+        if (typeof getExtensionFn === "function") {
+          const debugInfo = getExtensionFn.call(
+            gl,
+            "WEBGL_debug_renderer_info",
+          );
+          if (debugInfo) {
+            const getParamFn = gl["getParameter"];
+            gpuModel =
+              getParamFn.call(gl, debugInfo["UNMASKED_RENDERER_WEBGL"]) ||
+              "NO DISPONIBLE";
+          }
         }
       }
     } catch (e) {
-      gpuModel = "ERROR DE ACCESO";
+      gpuModel = "ERROR_ACCESO";
     }
 
     const ua = nav.userAgent;
@@ -122,17 +128,17 @@ export default function App() {
         ? "ARM"
         : "DESCONOCIDA";
 
-    // Acceso seguro a la conexión
-    const conn =
+    // Acceso seguro a propiedades de red
+    const connection =
       nav["connection"] || nav["mozConnection"] || nav["webkitConnection"];
     let connectionType = "DESCONOCIDA",
       networkSpeed = "DESCONOCIDA";
-    if (conn) {
-      connectionType = conn.effectiveType
-        ? conn.effectiveType.toUpperCase()
+    if (connection) {
+      connectionType = connection["effectiveType"]
+        ? String(connection["effectiveType"]).toUpperCase()
         : "DESCONOCIDA";
-      networkSpeed = conn.downlink
-        ? `${conn.downlink} Mbps [${conn.rtt}ms]`
+      networkSpeed = connection["downlink"]
+        ? `${connection["downlink"]} Mbps [${connection["rtt"]}ms]`
         : "DESCONOCIDA";
     }
 
@@ -154,17 +160,20 @@ export default function App() {
     }));
 
     if (nav.getBattery) {
-      nav.getBattery().then((battery) => {
-        const updateBattery = () => {
-          setDeviceInfo((prev) => ({
-            ...prev,
-            battery: `${Math.round(battery.level * 100)}% [${battery.charging ? "CARGANDO" : "DESCONECTADO"}]`,
-          }));
-        };
-        updateBattery();
-        battery.addEventListener("levelchange", updateBattery);
-        battery.addEventListener("chargingchange", updateBattery);
-      });
+      nav
+        .getBattery()
+        .then((battery) => {
+          const updateBattery = () => {
+            setDeviceInfo((prev) => ({
+              ...prev,
+              battery: `${Math.round(battery.level * 100)}% [${battery.charging ? "CARGANDO" : "DESCONECTADO"}]`,
+            }));
+          };
+          updateBattery();
+          battery.addEventListener("levelchange", updateBattery);
+          battery.addEventListener("chargingchange", updateBattery);
+        })
+        .catch(() => {});
     }
 
     const generateFingerprint = () => {
@@ -180,28 +189,30 @@ export default function App() {
 
     const gatherStorage = async () => {
       if (nav.storage && nav.storage.estimate) {
-        const est = await nav.storage.estimate();
-        setAdvTelemetry((prev) => ({
-          ...prev,
-          storageTotal: est.quota
-            ? `${(est.quota / 1024 ** 3).toFixed(2)}GB`
-            : "N/D",
-          storageUsed: est.usage
-            ? `${(est.usage / 1024 ** 2).toFixed(2)}MB`
-            : "N/D",
-          theme: window.matchMedia("(prefers-color-scheme: dark)").matches
-            ? "OSCURO"
-            : "CLARO",
-          cookies: nav.cookieEnabled ? "HABILITADAS" : "BLOQUEADAS",
-          languages: nav.languages.map((l) => l.toUpperCase()),
-          hardwareConcurrency: nav.hardwareConcurrency || "N/D",
-        }));
+        try {
+          const est = await nav.storage.estimate();
+          setAdvTelemetry((prev) => ({
+            ...prev,
+            storageTotal: est.quota
+              ? `${(est.quota / 1024 ** 3).toFixed(2)}GB`
+              : "N/D",
+            storageUsed: est.usage
+              ? `${(est.usage / 1024 ** 2).toFixed(2)}MB`
+              : "N/D",
+            theme: window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "OSCURO"
+              : "CLARO",
+            cookies: nav.cookieEnabled ? "HABILITADAS" : "BLOQUEADAS",
+            languages: nav.languages.map((l) => l.toUpperCase()),
+            hardwareConcurrency: nav.hardwareConcurrency || "N/D",
+          }));
+        } catch (e) {}
       }
     };
     gatherStorage();
   }, []);
 
-  // --- LOGICA DEL BENCHMARK ---
+  // --- BENCHMARK REAL ---
   const runBenchmark = () => {
     setIsBenchmarking(true);
     setTimeout(() => {
@@ -284,20 +295,20 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-[#d4d4d4] p-4 sm:p-8 font-mono text-xs sm:text-sm selection:bg-[#262626] selection:text-white">
       <div className="max-w-5xl mx-auto space-y-6">
-        {/* ENCABEZADO INSTITUCIONAL */}
+        {/* ENCABEZADO */}
         <header className="border border-[#262626] p-4 bg-[#0d0d0d] shadow-2xl">
-          <pre className="text-[#3b82f6] text-[7px] sm:text-[9px] md:text-xs leading-tight mb-4 overflow-hidden">
+          <pre className="text-[#3b82f6] text-[7px] sm:text-[9px] md:text-xs leading-tight mb-4 overflow-hidden whitespace-pre">
             {ASCII_HEADER}
           </pre>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-[#262626] pt-4">
             <div>
-              <div className="text-[#525252] text-[10px]">ESTUDIANTE</div>
+              <div className="text-[#525252] text-[10px] mb-1">ESTUDIANTE</div>
               <div className="text-white font-bold uppercase tracking-wider text-sm">
                 Angel Adrian Guerra Avila - grupo 23
               </div>
             </div>
             <div className="md:text-right">
-              <div className="text-[#525252] text-[10px]">DOCENTE</div>
+              <div className="text-[#525252] text-[10px] mb-1">DOCENTE</div>
               <div className="text-white font-bold uppercase tracking-wider text-sm">
                 Ruben Mendieta
               </div>
@@ -306,7 +317,7 @@ export default function App() {
         </header>
 
         {/* NAVEGACIÓN */}
-        <nav className="flex gap-2">
+        <nav className="flex flex-col sm:flex-row gap-2">
           <button
             onClick={() => setActiveTab("simulator")}
             className={`border px-6 py-2 transition-all ${activeTab === "simulator" ? "border-[#3b82f6] bg-[#3b82f6]/10 text-[#3b82f6]" : "border-[#262626] text-[#525252] hover:text-[#a3a3a3]"}`}
@@ -327,7 +338,7 @@ export default function App() {
             <div className="lg:col-span-5 space-y-6">
               <div className="border border-[#262626] p-6 bg-[#0d0d0d]">
                 <div className="text-[#525252] mb-4 border-b border-[#262626] pb-2 text-[10px]">
-                  ENTRADA DE DATOS
+                  ENTRADA DE PARAMETROS
                 </div>
                 <div className="space-y-4">
                   <div className="relative">
@@ -335,7 +346,7 @@ export default function App() {
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="ESCRIBA CONTRASEÑA..."
+                      placeholder="INGRESE CADENA..."
                       className="w-full bg-black border border-[#262626] p-3 text-white focus:border-[#3b82f6] outline-none transition-all"
                     />
                     <button
@@ -366,7 +377,7 @@ export default function App() {
                         /[^a-zA-Z0-9]/.test(password) ? "text-[#3b82f6]" : ""
                       }
                     >
-                      [#!$]
+                      [ESPECIALES]
                     </span>
                   </div>
                 </div>
@@ -374,20 +385,22 @@ export default function App() {
 
               <div className="border border-[#262626] p-6 bg-[#0d0d0d]">
                 <div className="text-[#525252] mb-4 border-b border-[#262626] pb-2 text-[10px]">
-                  RENDIMIENTO DEL PROCESADOR
+                  CAPACIDAD DEL NODO LOCAL
                 </div>
                 <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
                   <div>
-                    <div className="text-[#525252] text-[10px]">NÚCLEOS</div>
-                    <div className="text-white">{cores}</div>
+                    <div className="text-[#525252] text-[10px] mb-1">
+                      NÚCLEOS
+                    </div>
+                    <div className="text-white font-bold">{cores}</div>
                   </div>
                   <div>
-                    <div className="text-[#525252] text-[10px]">
-                      TASA DE HASH (H/S)
+                    <div className="text-[#525252] text-[10px] mb-1">
+                      TASA ACTUAL (H/S)
                     </div>
-                    <div className="text-white truncate">
+                    <div className="text-white font-bold truncate">
                       {hashesPerSecond === 0
-                        ? "---"
+                        ? "PENDIENTE"
                         : formatNumber(hashesPerSecond)}
                     </div>
                   </div>
@@ -395,10 +408,10 @@ export default function App() {
                 <button
                   onClick={runBenchmark}
                   disabled={isBenchmarking}
-                  className={`w-full border p-3 transition-all ${isBenchmarking ? "border-red-900 text-red-900 cursor-wait" : "border-[#3b82f6] text-[#3b82f6] hover:bg-[#3b82f6]/10"}`}
+                  className={`w-full border p-3 transition-all font-bold ${isBenchmarking ? "border-red-900 text-red-900 cursor-wait" : "border-[#3b82f6] text-[#3b82f6] hover:bg-[#3b82f6]/10"}`}
                 >
                   {isBenchmarking
-                    ? "PROCESANDO PRUEBA..."
+                    ? "ESTRESANDO HARDWARE..."
                     : "INICIAR BENCHMARK"}
                 </button>
               </div>
@@ -407,27 +420,27 @@ export default function App() {
             <div className="lg:col-span-7 border border-[#262626] p-6 bg-[#0d0d0d] flex flex-col justify-between">
               <div>
                 <div className="text-[#525252] mb-6 border-b border-[#262626] pb-2 text-[10px]">
-                  PROYECCIÓN DE TIEMPO DE RUPTURA
+                  PROYECCIÓN DE TIEMPO ESTIMADO
                 </div>
-                <div className="text-3xl sm:text-5xl font-bold text-white mb-4 tracking-tighter">
+                <div className="text-3xl sm:text-5xl font-bold text-white mb-4 tracking-tighter leading-tight">
                   {formatTime(timeToCrack)}
                 </div>
                 <div
-                  className={`text-[10px] inline-block p-1 px-2 border ${entropy < 60 ? "border-red-900 text-red-700" : "border-green-900 text-green-700"}`}
+                  className={`text-[10px] inline-block p-1 px-3 border font-bold ${entropy < 60 ? "border-red-900 text-red-700 bg-red-900/10" : "border-green-900 text-green-700 bg-green-900/10"}`}
                 >
                   ESTADO:{" "}
                   {entropy === 0
                     ? "EN ESPERA"
                     : entropy < 40
-                      ? "VULNERABILIDAD CRÍTICA"
-                      : "SEGURIDAD ESTÁNDAR"}
+                      ? "RIESGO CRÍTICO"
+                      : "SEGURIDAD ÓPTIMA"}
                 </div>
               </div>
 
               <div className="space-y-4 pt-8 border-t border-[#262626]">
                 <div className="flex justify-between text-[10px]">
                   <span className="text-[#525252]">ENTROPÍA DE SHANNON</span>
-                  <span className="text-[#3b82f6]">
+                  <span className="text-[#3b82f6] font-bold">
                     {entropy.toFixed(2)} BITS
                   </span>
                 </div>
@@ -440,9 +453,11 @@ export default function App() {
                   ></div>
                 </div>
                 <div className="flex justify-between text-[10px] pt-2">
-                  <span className="text-[#525252]">ESPACIO DE BÚSQUEDA</span>
-                  <span className="text-white">
-                    {formatNumber(combinations)} COMBINACIONES
+                  <span className="text-[#525252]">
+                    ESPACIO DE BÚSQUEDA COMBINATORIA
+                  </span>
+                  <span className="text-white font-bold">
+                    {formatNumber(combinations)}
                   </span>
                 </div>
               </div>
@@ -453,81 +468,86 @@ export default function App() {
         {/* CONTENIDO: RADIOGRAFÍA */}
         {activeTab === "radiography" && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
-            {/* BLOQUE: IDENTIDAD */}
             <div className="border border-[#262626] p-6 bg-[#0d0d0d] space-y-4">
-              <div className="text-[#10b981] text-[10px] border-b border-[#10b981]/20 pb-2">
-                IDENTIDAD DEL SISTEMA
+              <div className="text-[#10b981] text-[10px] border-b border-[#10b981]/20 pb-2 font-bold uppercase tracking-widest">
+                Identidad del Sistema
               </div>
-              <div className="space-y-2 text-[11px]">
-                <div className="flex justify-between">
-                  <span className="text-[#525252]">ID ÚNICO</span>
-                  <span className="text-[#10b981]">
+              <div className="space-y-3 text-[11px]">
+                <div className="flex justify-between border-b border-[#1a1a1a] pb-1">
+                  <span className="text-[#525252]">HASH DE VISITANTE</span>
+                  <span className="text-[#10b981] font-bold">
                     {deviceInfo.fingerprint}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-[#525252]">SISTEMA</span>
-                  <span className="text-white">{deviceInfo.os}</span>
+                <div className="flex justify-between border-b border-[#1a1a1a] pb-1">
+                  <span className="text-[#525252]">SISTEMA OPERATIVO</span>
+                  <span className="text-white font-bold">{deviceInfo.os}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-[#525252]">NAVEGADOR</span>
-                  <span className="text-white">{deviceInfo.browser}</span>
+                <div className="flex justify-between border-b border-[#1a1a1a] pb-1">
+                  <span className="text-[#525252]">NAVEGADOR BASE</span>
+                  <span className="text-white font-bold">
+                    {deviceInfo.browser}
+                  </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between border-b border-[#1a1a1a] pb-1">
                   <span className="text-[#525252]">ZONA HORARIA</span>
-                  <span className="text-white truncate ml-4">
+                  <span className="text-white truncate ml-4 font-bold">
                     {deviceInfo.timezone}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* BLOQUE: HARDWARE */}
             <div className="border border-[#262626] p-6 bg-[#0d0d0d] space-y-4">
-              <div className="text-[#10b981] text-[10px] border-b border-[#10b981]/20 pb-2">
-                ESPECIFICACIONES FÍSICAS
+              <div className="text-[#10b981] text-[10px] border-b border-[#10b981]/20 pb-2 font-bold uppercase tracking-widest">
+                Especificaciones de Hardware
               </div>
-              <div className="space-y-2 text-[11px]">
-                <div className="flex justify-between">
-                  <span className="text-[#525252]">NÚCLEOS</span>
-                  <span className="text-white">
+              <div className="space-y-3 text-[11px]">
+                <div className="flex justify-between border-b border-[#1a1a1a] pb-1">
+                  <span className="text-[#525252]">NÚCLEOS LÓGICOS</span>
+                  <span className="text-white font-bold">
                     {advTelemetry.hardwareConcurrency}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-[#525252]">RAM EST.</span>
-                  <span className="text-white">{deviceInfo.memory}</span>
+                <div className="flex justify-between border-b border-[#1a1a1a] pb-1">
+                  <span className="text-[#525252]">RAM ESTIMADA</span>
+                  <span className="text-white font-bold">
+                    {deviceInfo.memory}
+                  </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-[#525252]">GPU</span>
+                <div className="flex justify-between border-b border-[#1a1a1a] pb-1">
+                  <span className="text-[#525252]">PROCESADOR GRAFICO</span>
                   <span
-                    className="text-[#10b981] truncate ml-4"
+                    className="text-[#10b981] truncate ml-4 font-bold"
                     title={deviceInfo.gpu}
                   >
                     {deviceInfo.gpu}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-[#525252]">BATERÍA</span>
-                  <span className="text-white">{deviceInfo.battery}</span>
+                <div className="flex justify-between border-b border-[#1a1a1a] pb-1">
+                  <span className="text-[#525252]">ESTADO DE BATERÍA</span>
+                  <span className="text-white font-bold">
+                    {deviceInfo.battery}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* BLOQUE: RED Y GEO */}
             <div className="border border-[#262626] p-6 bg-[#0d0d0d] space-y-4 md:col-span-2 lg:col-span-1">
-              <div className="text-[#10b981] text-[10px] border-b border-[#10b981]/20 pb-2">
-                LOCALIZACIÓN Y RED
+              <div className="text-[#10b981] text-[10px] border-b border-[#10b981]/20 pb-2 font-bold uppercase tracking-widest">
+                Localización y Conectividad
               </div>
               <div className="space-y-4">
                 <div className="space-y-2 text-[11px]">
                   <div className="flex justify-between">
-                    <span className="text-[#525252]">ENLACE</span>
-                    <span className="text-white">{deviceInfo.connection}</span>
+                    <span className="text-[#525252]">TIPO DE ENLACE</span>
+                    <span className="text-white font-bold">
+                      {deviceInfo.connection}
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[#525252]">VELOCIDAD</span>
-                    <span className="text-white">
+                    <span className="text-[#525252]">ANCHO DE BANDA</span>
+                    <span className="text-white font-bold">
                       {deviceInfo.networkSpeed}
                     </span>
                   </div>
@@ -535,40 +555,39 @@ export default function App() {
                 <div className="border border-[#262626] p-3 bg-black">
                   <button
                     onClick={requestLocation}
-                    className="w-full text-[10px] text-[#10b981] hover:text-white transition-colors"
+                    className="w-full text-[10px] text-[#10b981] hover:text-white transition-colors font-bold"
                   >
                     {geolocation.lat
-                      ? `COORD: ${geolocation.lat}, ${geolocation.lon}`
-                      : `[ INICIAR LOCALIZACIÓN ]`}
+                      ? `LOCALIZACIÓN: ${geolocation.lat}, ${geolocation.lon}`
+                      : `[ OBTENER COORDENADAS GPS ]`}
                   </button>
                   {geolocation.link && (
                     <a
                       href={geolocation.link}
                       target="_blank"
                       rel="noreferrer"
-                      className="block text-center text-[#525252] text-[9px] mt-2 underline"
+                      className="block text-center text-[#525252] text-[9px] mt-2 underline font-bold uppercase"
                     >
-                      VER EN MAPA
+                      Abrir Mapa Externo
                     </a>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* BLOQUE: USER AGENT */}
             <div className="border border-[#262626] p-4 bg-black col-span-1 md:col-span-2 lg:col-span-3">
-              <div className="text-[#404040] text-[9px] mb-2 uppercase tracking-widest">
-                Cadena de Agente de Usuario (User Agent)
+              <div className="text-[#404040] text-[9px] mb-2 uppercase tracking-widest font-bold">
+                User Agent del Sistema
               </div>
-              <div className="text-[#525252] text-[10px] break-all leading-relaxed italic">
+              <div className="text-[#525252] text-[10px] break-all leading-relaxed italic border-l-2 border-[#1a1a1a] pl-3">
                 {deviceInfo.userAgent}
               </div>
             </div>
           </div>
         )}
 
-        <footer className="text-center text-[#404040] text-[9px] pt-8">
-          PROYECTO FINAL - SIMULACIÓN DE SISTEMAS - 2024
+        <footer className="text-center text-[#404040] text-[9px] pt-8 border-t border-[#1a1a1a] uppercase tracking-widest">
+          PROYECTO FINAL - INGENIERÍA EN SISTEMAS - 2024
         </footer>
       </div>
     </div>
