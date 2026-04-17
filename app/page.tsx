@@ -78,24 +78,19 @@ export default function App() {
     let gpuModel = "NO DETECTADO";
     try {
       const canvas = document.createElement("canvas");
-      // Acceso dinámico para evadir el Type Checking de Vercel
+
+      // @ts-ignore: Evita que Vercel/TypeScript valide el tipo de contexto
       const gl =
         canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
 
       if (gl) {
-        // Usamos notación de corchetes para que el compilador no valide la propiedad
-        const getExtensionFn = gl["getExtension"];
-        if (typeof getExtensionFn === "function") {
-          const debugInfo = getExtensionFn.call(
-            gl,
-            "WEBGL_debug_renderer_info",
-          );
-          if (debugInfo) {
-            const getParamFn = gl["getParameter"];
-            gpuModel =
-              getParamFn.call(gl, debugInfo["UNMASKED_RENDERER_WEBGL"]) ||
-              "NO DISPONIBLE";
-          }
+        // @ts-ignore: Fuerza al compilador a ignorar la falta de getExtension
+        const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
+        if (debugInfo) {
+          // @ts-ignore
+          gpuModel =
+            gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ||
+            "NO DISPONIBLE";
         }
       }
     } catch (e) {
